@@ -1,76 +1,96 @@
 plugins {
-    id 'org.springframework.boot' version '3.0.3'
-    id "org.sonarqube" version "3.2.0"
+  id 'java'
+  id 'org.springframework.boot' version '3.5.6'
+  id 'io.spring.dependency-management' version '1.1.7'
+  id 'jacoco'
+  id 'checkstyle'
 }
 
-apply plugin: 'java'
-apply plugin: 'maven-publish'
-apply plugin: 'jacoco'
-apply plugin: 'org.springframework.boot'
-apply plugin: 'io.spring.dependency-management'
-apply plugin: 'java-library'
-
-jacocoTestReport {
-    reports {
-        xml.enabled true
-        xml.destination file("${buildDir}/reports/jacoco.xml")
-    }
-}
-
-sonarqube {
-    properties {
-        property 'sonar.coverage.jacoco.xmlReportPaths', "${buildDir}/reports/jacoco.xml"
-    }
-}
-
-group = 'com.epam.edp'
+group = 'io.kuberocketci'
 version = '0.0.1-SNAPSHOT'
+description = 'KubeRocketCI demo project for Spring Boot with Gradle'
 
-description = """"""
-
-sourceCompatibility = 17
-targetCompatibility = 17
-tasks.withType(JavaCompile) {
-    options.encoding = 'UTF-8'
-}
-
-bootJar {
-    mainClass = "com.epam.edp.demo.DemoApplication"
-}
-
-publishing {
-    publications {
-        mavenJava(MavenPublication) {
-            from components.java
-        }
-    }
-
-    repositories {
-        maven {
-            credentials {
-                username = System.getenv('CI_USERNAME') ?: project.findProperty('nexusLogin') ?: 'defaultLogin'
-                password = System.getenv('CI_PASSWORD') ?: project.findProperty('nexusPassword') ?: 'defaultPassword'
-            }
-            def defaultRepoUrl = 'http://nexus:8081/repository/edp-maven-snapshots'
-            def releasesRepoUrl = project.findProperty('releasesRepoUrl') ?: defaultRepoUrl
-            def snapshotsRepoUrl = project.findProperty('snapshotsRepoUrl') ?: defaultRepoUrl
-            url = version.contains('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
-            allowInsecureProtocol = true
-        }
-    }
+java {
+  toolchain {
+    languageVersion = JavaLanguageVersion.of(17)
+  }
 }
 
 repositories {
-     maven { url "https://repo.maven.apache.org/maven2" }
+  mavenCentral()
 }
 
 dependencies {
-    implementation('org.springframework.boot:spring-boot-starter-web')
-    implementation('org.springframework.boot:spring-boot-starter-test')
-    testImplementation 'junit:junit:4.13.2'
-    implementation 'junit:junit:4.13.2'
+  implementation 'org.springframework.boot:spring-boot-starter-web'
+  testImplementation 'org.springframework.boot:spring-boot-starter-test'
+  testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
-jar {
-    enabled = false
+// Test configuration
+tasks.named('test') {
+  useJUnitPlatform()
+  finalizedBy jacocoTestReport
+}
+
+// JaCoCo configuration for code coverage
+jacoco {
+  toolVersion = "0.8.12"
+}
+
+jacocoTestReport {
+  dependsOn test
+  reports {
+    xml.required = true
+    html.required = true
+    csv.required = false
+  }
+  executionData.setFrom(fileTree(dir: 'build/jacoco', include: '**/*.exec'))
+  afterEvaluate {
+    classDirectories.setFrom(files(classDirectories.files.collect {
+      fileTree(dir: it, exclude: [
+        '**/DemoApplication.class'
+      ])
+    }))
+  }
+  finalizedBy jacocoTestCoverageVerification
+}
+
+jacocoTestCoverageVerification {
+  dependsOn jacocoTestReport
+  violationRules {
+    rule {
+      limit {
+        counter = 'LINE'
+        value = 'COVEREDRATIO'
+        minimum = 0.80  // Higher threshold (official uses 0.30)
+      }
+    }
+  }
+  afterEvaluate {
+    classDirectories.setFrom(files(classDirectories.files.collect {
+      fileTree(dir: it, exclude: [
+        '**/DemoApplication.class'
+      ])
+    }))
+  }
+}
+
+// Checkstyle configuration for code quality
+checkstyle {
+  toolVersion = '10.20.2'
+  configFile = rootProject.file('config/checkstyle/checkstyle.xml')
+  maxWarnings = 100  // Allow warnings for demo
+  maxErrors = 0
+  ignoreFailures = false  // Fail on errors (official uses true)
+}
+
+tasks.withType(Checkstyle) {
+  reports {
+    xml.required = true
+    html.required = true
+  }
+}
+
+check {
+  dependsOn jacocoTestCoverageVerification
 }
