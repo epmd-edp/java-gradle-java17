@@ -27,6 +27,11 @@ dependencies {
   testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
+// Disable plain JAR generation - only build the executable Spring Boot JAR
+tasks.named('jar') {
+  enabled = false
+}
+
 // Test configuration
 tasks.named('test') {
   useJUnitPlatform()
