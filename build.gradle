@@ -54,7 +54,8 @@ jacocoTestReport {
   afterEvaluate {
     classDirectories.setFrom(files(classDirectories.files.collect {
       fileTree(dir: it, exclude: [
-        '**/DemoApplication.class'
+        // Exclude patterns for generated or boilerplate code
+        // '**/DemoApplication.class'  // Now included with proper test coverage
       ])
     }))
   }
@@ -75,7 +76,8 @@ jacocoTestCoverageVerification {
   afterEvaluate {
     classDirectories.setFrom(files(classDirectories.files.collect {
       fileTree(dir: it, exclude: [
-        '**/DemoApplication.class'
+        // Exclude patterns for generated or boilerplate code
+        // '**/DemoApplication.class'  // Now included with proper test coverage
       ])
     }))
   }
